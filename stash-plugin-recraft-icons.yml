@@ -20,13 +20,11 @@ settings:
   recraftTagIconSize:
     displayName: Icon Size
     description: The size of the icon to be generated.
-    type: INTEGER
-    default: 1024
+    type: STRING
   recraftTagIconFormat:
     displayName: Icon Format
     description: The format of the icon to be generated.
     type: STRING
-    default: svg
   recraftTagIconStyleId:
     displayName: Icon Style ID
     description: The style ID of the icon to be generated.

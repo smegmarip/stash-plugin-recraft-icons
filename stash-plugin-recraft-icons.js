@@ -5,6 +5,13 @@ const { Button, Modal } = api.libraries.Bootstrap;
 const { useToast } = api.hooks;
 const Toast = useToast();
 
+const PLUGIN_ID = 'stash-plugin-recraft-icons';
+const DEFAULT_RECRAFT_API_URL =
+  'https://external.api.recraft.ai/v1/images/generations';
+const DEFAULT_RECRAFT_SIZE = '1024';
+const DEFAULT_RECRAFT_FORMAT = 'svg';
+const DEFAULT_RECRAFT_STYLE_ID = 'bdb513fc-cf7f-4e0f-be45-ef18bd693d03';
+
 /**
  * Button component for generating icons.
  * @param {Object} params - The component props.
@@ -21,6 +28,8 @@ const ButtonComponent = params => {
     console.log('Modal data:', mData);
     disableModal();
   };
+  // onClickHandler should result in the fetchTagIcon being called
+  // after enabling the modal
   const buttonInstance = React.createElement(DetailButton, {
     onClickHandler: enableModal,
   });
@@ -82,6 +91,8 @@ const CustomModal = ({
   dataState,
   onChangeHandler,
 }) => {
+  // onChangeHandler shoud fire with the image url of the icon preview
+  // that is displayed in the modal
   return React.createElement(
     Modal,
     { show: displayState, onHide: onCloseHandler },
@@ -147,26 +158,6 @@ const getTagId = function () {
 };
 
 /**
- * Retrieves the tag for a given tag id.
- *
- * @param {number} tagId - The id of the tag to retrieve.
- * @returns {Promise<string>} - A promise that resolves with the tag ID.
- */
-const findTagById = async function (tagId) {
-  const reqData = {
-    query: `{
-          findTag(id: ${tagId})
-        }`,
-  };
-  var result = await csLib.callGQL(reqData);
-
-  if ('findTag' in result) {
-    return result.findTag;
-  }
-  return null;
-};
-
-/**
  * Fetches the tag icon from the Recraft API and returns the image URL.
  * @param {Object} params - The parameters for the API request.
  * @param {string} tagName - The name of the tag.
@@ -190,7 +181,7 @@ const fetchTagIcon = async (params, tagName) => {
         Prefer: 'wait',
       },
       body: JSON.stringify({
-        size: recraftTagIconSize,
+        size: `${recraftTagIconSize}x${recraftTagIconSize}`,
         prompt: tagName,
         style_id: recraftTagIconStyleId,
         model: 'recraftv2',
@@ -232,8 +223,28 @@ const notify = (type, title, message) => {
 (function () {
   'use strict';
 
-  const { getPluginConfig } = window.stashFunctions;
+  const { getPluginConfig, updatePluginConfig } = window.stashFunctions;
   const csLib = window.csLib;
+
+  /**
+   * Retrieves the tag for a given tag id.
+   *
+   * @param {number} tagId - The id of the tag to retrieve.
+   * @returns {Promise<string>} - A promise that resolves with the tag ID.
+   */
+  const findTagById = async function (tagId) {
+    const reqData = {
+      query: `{
+          findTag(id: ${tagId})
+        }`,
+    };
+    var result = await csLib.callGQL(reqData);
+
+    if ('findTag' in result) {
+      return result.findTag;
+    }
+    return null;
+  };
 
   /**
    * Updates the tag image with the provided URL.
@@ -282,40 +293,80 @@ const notify = (type, title, message) => {
    * @throws {Error} If the plugin is not enabled.
    */
   const initializePlugin = () => {
-    getPluginConfig('stashNewPerformerFilterButton').then(settings => {
-      const {
-        recraftApiKey,
-        recraftApiUrl,
-        recraftTagIconSize = '1024x1024',
-        recraftTagIconFormat = 'svg',
-        recraftTagIconStyleId,
-      } = settings;
-      const pluginEnabled = recraftApiKey && recraftApiUrl;
-      const tagId = getTagId();
+    getPluginConfig('stashNewPerformerFilterButton').then(config => {
+      setupPluginDefaults(config)
+        .then(settings => {
+          const {
+            recraftApiKey,
+            recraftApiUrl,
+            recraftTagIconSize,
+            recraftTagIconFormat,
+            recraftTagIconStyleId,
+          } = settings;
+          const pluginEnabled = recraftApiKey && recraftApiUrl;
+          const tagId = getTagId();
 
-      if (pluginEnabled && tagId) {
-        findTagById(tagId).then(tag => {
-          if (tag) {
-            const tagName = tag.name;
-            const parents = tag.parents.map(parent => parent.name).join(', ');
-            const buttonInstance = React.createElement(ButtonComponent, {
-              recraftApiKey,
-              recraftApiUrl,
-              recraftTagIconSize,
-              recraftTagIconFormat,
-              recraftTagIconStyleId,
-              parents,
-              tagName,
-              tagId,
+          if (pluginEnabled && tagId) {
+            findTagById(tagId).then(tag => {
+              if (tag) {
+                const tagName = tag.name;
+                const parents = tag.parents
+                  .map(parent => parent.name)
+                  .join(', ');
+                const buttonInstance = React.createElement(ButtonComponent, {
+                  recraftApiKey,
+                  recraftApiUrl,
+                  recraftTagIconSize,
+                  recraftTagIconFormat,
+                  recraftTagIconStyleId,
+                  parents,
+                  tagName,
+                  tagId,
+                });
+                const root = document.querySelector('root');
+                api.ReactDOM.render(buttonInstance, root);
+              } else {
+                console.error('Tag not found');
+              }
             });
-            const root = document.querySelector('root');
-            api.ReactDOM.render(buttonInstance, root);
           } else {
-            console.error('Tag not found');
+            Toast.error('Plugin not enabled or tag ID not found');
+            console.error('Plugin not enabled or tag ID not found');
           }
+        })
+        .catch(error => {
+          console.error('Error setting up plugin defaults:', error);
+          Toast.error('Error setting up plugin defaults.');
         });
+    });
+  };
+
+  const setupPluginDefaults = async params => {
+    const {
+      recraftApiKey,
+      recraftApiUrl = DEFAULT_RECRAFT_API_URL,
+      recraftTagIconSize = DEFAULT_RECRAFT_SIZE,
+      recraftTagIconFormat = DEFAULT_RECRAFT_SIZE,
+      recraftTagIconStyleId,
+    } = params;
+
+    return new Promise((resolve, reject) => {
+      if (!recraftApiUrl || !recraftTagIconSize || !recraftTagIconFormat) {
+        const result = updatePluginConfig(PLUGIN_ID, {
+          recraftApiKey,
+          recraftApiUrl,
+          recraftTagIconSize,
+          recraftTagIconFormat,
+          recraftTagIconStyleId,
+        });
+
+        if (result && result.configurePlugin) {
+          resolve(result.configurePlugin);
+        } else {
+          reject(new Error('Failed to update plugin configuration'));
+        }
       } else {
-        console.error('Plugin not enabled or tag ID not found');
+        resolve(params);
       }
     });
   };
