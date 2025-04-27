@@ -1,0 +1,12 @@
+{
+  "id": "stash-plugin-recraft-icons",
+  "name": "Stash Recraft Icons",
+  "description": "Create icons for tags using Recraft AI directly inside StashApp",
+  "version": "1.0.0",
+  "stashPluginVersion": "0.1.0",
+  "url": "",
+  "setup": {
+    "requires": [],
+    "optional": []
+  }
+}

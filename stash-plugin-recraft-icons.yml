@@ -1,0 +1,33 @@
+name: Recraft Tag Icons
+description: Creates a tag icon using the Recraft API.
+version: 1.0
+ui:
+  requires:
+    - CommunityScriptsUILibrary
+  javascript:
+    - stashFunctions.js
+    - stash-plugin-recraft-icons.js
+
+settings:
+  recraftApiKey:
+    displayName: Recraft API Key
+    description: The API key for the Recraft API.
+    type: STRING
+  recraftApiUrl:
+    displayName: Recraft API URL
+    description: The URL for the Recraft API.
+    type: STRING
+  recraftTagIconSize:
+    displayName: Icon Size
+    description: The size of the icon to be generated.
+    type: INTEGER
+    default: 1024
+  recraftTagIconFormat:
+    displayName: Icon Format
+    description: The format of the icon to be generated.
+    type: STRING
+    default: svg
+  recraftTagIconStyleId:
+    displayName: Icon Style ID
+    description: The style ID of the icon to be generated.
+    type: STRING
