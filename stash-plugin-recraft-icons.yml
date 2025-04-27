@@ -1,12 +1,24 @@
 name: Recraft Tag Icons
 description: Creates a tag icon using the Recraft API.
 version: 1.0
+exec:
+  - python
+  - '{pluginDir}/python/recraft.py'
+interface: raw
+
+tasks:
+  - name: Recraft Tag Icon
+    description: Create a tag icon using the Recraft API.
+    defaultArgs:
+      name: recraftTagIcon
+      mode: recraftTagIcon
+      tagName: ''
 ui:
   requires:
     - CommunityScriptsUILibrary
   javascript:
-    - stashFunctions.js
-    - stash-plugin-recraft-icons.js
+    - js/stashFunctions.js
+    - js/stash-plugin-recraft-icons.js
 
 settings:
   recraftApiKey:
@@ -24,6 +36,14 @@ settings:
   recraftTagIconFormat:
     displayName: Icon Format
     description: The format of the icon to be generated.
+    type: STRING
+  recraftTagIconStyle:
+    displayName: Icon Base Style
+    description: The base style of the icon to be generated.
+    type: STRING
+  recraftTagIconSubStyle:
+    displayName: Icon Sub-Style
+    description: The sub-style of the icon to be generated.
     type: STRING
   recraftTagIconStyleId:
     displayName: Icon Style ID
