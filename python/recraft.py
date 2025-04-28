@@ -126,7 +126,7 @@ def get_plugin_settings():
 import requests
 
 
-def fetch_tag_icon(params, tag_name):
+def fetch_tag_icon(params, tag_name, use_light_colors=False, abstract_style=False):
     """
     Fetches the tag icon from the Recraft API and returns the image URL.
 
@@ -149,11 +149,21 @@ def fetch_tag_icon(params, tag_name):
         "Prefer": "wait",
     }
 
+    prompt = tag_name
+
+    if abstract_style:
+        prompt += ", abstract style"
+
+    if use_light_colors:
+        prompt += ", in light colors"
+
     payload = {
         "size": f"{recraft_tag_icon_size}x{recraft_tag_icon_size}",
-        "prompt": tag_name,
+        "prompt": prompt,
         "model": "recraftv2",
     }
+
+    stash_log(f"Running Recraft API with payload: {payload}", lvl="debug")
 
     if recraft_tag_icon_style_id is not None and recraft_tag_icon_style_id != "":
         payload["style"] = recraft_tag_icon_style_id
@@ -215,7 +225,16 @@ def main():
                         stash_log("No plugin settings found", lvl="error")
                         exit_plugin(msg="No plugin settings found")
                     else:
-                        result = fetch_tag_icon(settings, tagName)
+                        stash_log("Plugin settings found: ", ARGS, lvl="debug")
+                        light_colors = (
+                            ARGS["lightColors"] if "lightColors" in ARGS and ARGS["lightColors"] != "false" else False
+                        )
+                        abstract_style = (
+                            ARGS["abstractStyle"]
+                            if "abstractStyle" in ARGS and ARGS["abstractStyle"] != "false"
+                            else False
+                        )
+                        result = fetch_tag_icon(settings, tagName, light_colors, abstract_style)
                         if result is not None:
                             stash_log("recraftTagIcon =", {"url": result}, lvl="info")
                             exit_plugin(msg="ok")

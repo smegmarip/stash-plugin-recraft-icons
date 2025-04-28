@@ -13,6 +13,9 @@ tasks:
       name: recraftTagIcon
       mode: recraftTagIcon
       tagName: ''
+      lightColors: false
+      abstractStyle: false
+
 ui:
   requires:
     - CommunityScriptsUILibrary

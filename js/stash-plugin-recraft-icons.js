@@ -73,16 +73,31 @@
 
     /**
      * Fetches the tag icon and updates the image URL in the state.
+     * @param {Object} options - The options for the fetch.
+     * @param {string} options.tagName - The name of the tag.
+     * @param {boolean} options.abstractStyle - Whether to use abstract style.
+     * @param {boolean} options.lightColors - Whether to use light colors.
      * @returns {Promise<void>}
      */
-    const performTagFetch = async (customPrompt = null) => {
+    const performTagFetch = async (options = {}) => {
       setCustom(false);
       setLoading(true);
 
+      const {
+        tagName: customPrompt = null,
+        abstractStyle = false,
+        lightColors = false,
+      } = options;
       const iconQuery = customPrompt || data.tagName;
 
       try {
-        const url = await fetchTagIcon(data, iconQuery, Toast);
+        const url = await fetchTagIcon(
+          data,
+          iconQuery,
+          abstractStyle,
+          lightColors,
+          Toast,
+        );
         setImageUrl(url);
         setData(prev => ({ ...prev, imageUrl: url }));
       } catch (e) {
@@ -249,8 +264,10 @@
     imageUrlState,
     customState,
   }) => {
-    // State to hold the prompt value
+    // Component internal states
     const [prompt, setPrompt] = React.useState(dataState.tagName);
+    const [lightColors, setLightColors] = React.useState(false);
+    const [abstractStyle, setAbstractStyle] = React.useState(false);
 
     /**
      * Custom prompt component for entering a custom prompt.
@@ -260,26 +277,87 @@
     const customPrompt = () => {
       return React.createElement(
         'div',
-        { className: 'input-group mb-3' },
-        React.createElement('input', {
-          id: 'custom-icon-prompt',
-          placeholder: 'Enter custom prompt',
-          'aria-label': 'Custom prompt',
-          className: 'text-input form-control mr-3',
-          type: 'text',
-          value: prompt,
-          onChange: e => {
-            setPrompt(e.target.value);
-          },
-        }),
+        { className: 'mb-3' },
         React.createElement(
-          'button',
-          {
-            className: 'btn btn-primary',
-            id: 'update-icon-prompt',
-            onClick: _e => onChangeHandler(prompt),
-          },
-          'Submit',
+          'div',
+          { classNAme: 'row' },
+          React.createElement(
+            'div',
+            { className: 'input-group col-md-12' },
+            React.createElement('input', {
+              id: 'custom-icon-prompt',
+              placeholder: 'Enter custom prompt',
+              'aria-label': 'Custom prompt',
+              className: 'text-input form-control mr-3',
+              type: 'text',
+              value: prompt,
+              onChange: e => {
+                setPrompt(e.target.value);
+              },
+            }),
+            React.createElement(
+              'button',
+              {
+                className: 'btn btn-primary',
+                id: 'update-icon-prompt',
+                onClick: _e =>
+                  onChangeHandler({
+                    tagName: prompt,
+                    abstractStyle: abstractStyle,
+                    lightColors: lightColors,
+                  }),
+              },
+              'Submit',
+            ),
+          ),
+          React.createElement(
+            'div',
+            { className: 'col-md-12 d-flex pt-3 pb-1' },
+            React.createElement(
+              'div',
+              { className: 'custom-control custom-switch mr-3' },
+              React.createElement('input', {
+                className: 'custom-control-input',
+                type: 'checkbox',
+                role: 'switch',
+                id: 'use-light-color-switch',
+                checked: lightColors,
+                onChange: e => {
+                  setLightColors(e.target.checked);
+                },
+              }),
+              React.createElement(
+                'label',
+                {
+                  className: 'custom-control-label',
+                  for: 'use-light-color-switch',
+                },
+                'Light Colors',
+              ),
+            ),
+            React.createElement(
+              'div',
+              { className: 'custom-control custom-switch mr-3' },
+              React.createElement('input', {
+                className: 'custom-control-input',
+                type: 'checkbox',
+                role: 'switch',
+                id: 'use-abstract-style',
+                checked: abstractStyle,
+                onChange: e => {
+                  setAbstractStyle(e.target.checked);
+                },
+              }),
+              React.createElement(
+                'label',
+                {
+                  className: 'custom-control-label',
+                  for: 'use-abstract-style',
+                },
+                'Abstract Style',
+              ),
+            ),
+          ),
         ),
       );
     };
@@ -357,7 +435,12 @@
               Button,
               {
                 variant: 'success',
-                onClick: () => onRefreshHandler(prompt),
+                onClick: () =>
+                  onRefreshHandler({
+                    tagName: prompt,
+                    abstractStyle: abstractStyle,
+                    lightColors: lightColors,
+                  }),
               },
               'Refresh',
             )
@@ -437,10 +520,18 @@
    * Fetches the tag icon from the Recraft API and returns the image URL.
    * @param {Object} params - The parameters for the API request.
    * @param {string} tagName - The name of the tag.
+   * @param {boolean} abstractStyle - Whether to use abstract style.
+   * @param {boolean} lightColors - Whether to use light colors.
    * @param {Object} Toast - The Toast object for displaying messages.
    * @returns {Promise<string>} - A promise that resolves with the image URL.
    */
-  const fetchTagIcon = async (params, tagName, Toast) => {
+  const fetchTagIcon = async (
+    params,
+    tagName,
+    abstractStyle,
+    lightColors,
+    Toast,
+  ) => {
     const task = 'Recraft Tag Icon',
       operation = 'recraftTagIcon',
       prefix = `[Plugin / Recraft Tag Icons] ${operation} =`,
@@ -449,6 +540,15 @@
         { key: 'name', value: { str: operation } },
         { key: 'tagName', value: { str: `${tagName}` } },
       ];
+
+    if (abstractStyle) {
+      payload.push({ key: 'abstractStyle', value: { str: 'true' } });
+    }
+
+    if (lightColors) {
+      payload.push({ key: 'lightColors', value: { str: 'true' } });
+    }
+
     return new Promise((resolve, reject) => {
       try {
         runPluginTask(PLUGIN_ID, task, payload).then(() => {
