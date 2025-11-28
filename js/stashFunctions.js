@@ -527,6 +527,7 @@
    * Parses a search item element and extracts relevant information.
    *
    * @param {HTMLElement} searchItem - The search item element to parse.
+   * @param {Object} scenes - An object containing scene data indexed by ID.
    * @returns {Object} An object containing the parsed information.
    * @returns {HTMLElement} return.urlNode - The anchor element containing the scene link.
    * @returns {URL} return.url - The URL object created from the scene link.
@@ -538,11 +539,11 @@
    * @returns {NodeList} return.performerNodes - A NodeList of elements containing performer tags.
    * @returns {NodeList} return.tagNodes - A NodeList of elements containing scene tags.
    */
-  function parseSearchItem(searchItem) {
+  function parseSearchItem(searchItem, scenes) {
     const urlNode = searchItem.querySelector('a.scene-link');
     const url = new URL(urlNode.href);
     const id = url.pathname.replace('/scenes/', '');
-    const data = this.scenes[id];
+    const data = scenes[id];
     const nameNode = searchItem.querySelector(
       'a.scene-link > div.TruncatedText',
     );
@@ -565,6 +566,150 @@
       queryInput,
       performerNodes,
       tagNodes,
+    };
+  }
+
+  /**
+   * Parses a search result item and extracts relevant information.
+   * @param {HTMLElement} searchResultItem - The search result item element to parse.
+   * @param {Object} remoteData - An object containing remote scene data.
+   * @returns {Object} An object containing parsed information from the search result item.
+   * @returns {HTMLElement} return.remoteUrlNode - The anchor element containing the remote scene URL.
+   * @returns {string} return.remoteId - The ID extracted from the remote scene URL.
+   * @returns {URL|null} return.remoteUrl - The URL object created from the remote scene URL, or null if not available.
+   * @returns {Object} return.remoteData - The remote scene data associated with the remoteId.
+   * @returns {HTMLElement[]} return.urlNodes - An array of elements containing URLs from the scene details.
+   * @returns {HTMLElement|null} return.detailsNode - The element containing the scene details, or null if not found.
+   */
+  function parseSearchResultItem(searchResultItem, remoteData) {
+    const remoteUrlNode = searchResultItem.querySelector(
+      '.scene-details .optional-field .optional-field-content a',
+    );
+    const remoteId = remoteUrlNode?.href.split('/').pop();
+    const remoteUrl = remoteUrlNode?.href ? new URL(remoteUrlNode.href) : null;
+
+    const sceneDetailNodes = searchResultItem.querySelectorAll(
+      '.scene-details .optional-field .optional-field-content',
+    );
+    let urlNodes = [];
+    let detailsNode = null;
+    for (const sceneDetailNode of sceneDetailNodes) {
+      for (const sceneDetailNodeChild of sceneDetailNode.childNodes) {
+        let bIsUrlNode = false;
+        if (remoteData?.urls) {
+          for (const remoteDataUrl of remoteData.urls) {
+            if (remoteDataUrl === sceneDetailNodeChild.innerText) {
+              urlNodes.push(sceneDetailNodeChild);
+              bIsUrlNode = true;
+            }
+          }
+        }
+        if (
+          !bIsUrlNode &&
+          remoteData?.details === sceneDetailNodeChild.textContent
+        ) {
+          detailsNode = sceneDetailNodeChild;
+        }
+      }
+    }
+
+    const imageNode = searchResultItem.querySelector(
+      '.scene-image-container .optional-field .optional-field-content',
+    );
+
+    const metadataNode = searchResultItem.querySelector('.scene-metadata');
+    const titleNode = metadataNode.querySelector(
+      'h4 .optional-field .optional-field-content',
+    );
+    let dateNode;
+    let studioCodeNode;
+    let directorNode;
+    for (const node of searchResultItem.querySelectorAll(
+      'h5 .optional-field .optional-field-content',
+    )) {
+      if (node.innerText === remoteData.date) {
+        dateNode = node;
+      } else if (node.innerText === remoteData.code) {
+        studioCodeNode = node;
+      } else if (node.innerText === 'Director: ' + remoteData.director) {
+        directorNode = node;
+      }
+    }
+
+    const entityNodes = searchResultItem.querySelectorAll('.entity-name');
+    let studioNode = null;
+    const performerNodes = [];
+    for (const entityNode of entityNodes) {
+      if (entityNode.innerText.startsWith('Studio:')) {
+        studioNode = entityNode;
+      } else if (entityNode.innerText.startsWith('Performer:')) {
+        performerNodes.push(entityNode);
+      }
+    }
+
+    const matchNodes = searchResultItem.querySelectorAll(
+      'div.col-lg-6 div.mt-2 div.row.no-gutters.my-2 span.ml-auto',
+    );
+    const matches = [];
+    for (const matchNode of matchNodes) {
+      let matchType = null;
+      const entityNode = matchNode.parentElement.querySelector('.entity-name');
+
+      const matchName = matchNode.querySelector(
+        '.optional-field-content b',
+      ).innerText;
+      const matchStoredId = matchNode.querySelector('a').href.split('/').pop();
+      const remoteName = entityNode.querySelector('b').innerText;
+
+      let data;
+      if (entityNode.innerText.startsWith('Performer:')) {
+        matchType = 'performer';
+        if (remoteData) {
+          data = remoteData.performers.find(
+            performer => performer.stored_id === matchStoredId,
+          );
+        }
+      } else if (entityNode.innerText.startsWith('Studio:')) {
+        matchType = 'studio';
+        if (remoteData) {
+          data = remoteData.studio;
+        }
+      }
+
+      matches.push({
+        matchType,
+        matchNode,
+        entityNode,
+        matchName,
+        remoteName,
+        data,
+      });
+    }
+
+    const tagNodes = searchResultItem.querySelectorAll(
+      'div.col-lg-6 div.mt-2 div div.form-group.row div.col-xl-12.col-sm-9 .react-select__multi-value',
+    );
+    const unmatchedTagNodes = searchResultItem.querySelectorAll(
+      'div.col-lg-6 div.mt-2 span.tag-item.badge.badge-secondary',
+    );
+
+    return {
+      remoteUrlNode,
+      remoteId,
+      remoteUrl,
+      remoteData,
+      urlNodes,
+      detailsNode,
+      imageNode,
+      titleNode,
+      dateNode,
+      studioNode,
+      performerNodes,
+      matches,
+      tagNodes,
+      unmatchedTagNodes,
+      studioCodeNode,
+      directorNode,
     };
   }
 
@@ -598,5 +743,6 @@
     pollLogsForMessage,
     setProgress,
     parseSearchItem,
+    parseSearchResultItem,
   };
 })();
